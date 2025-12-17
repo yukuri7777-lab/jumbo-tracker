@@ -1,123 +1,292 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ja">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Jumbo Tracker</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        body { background-color: #f3f4f6; }
-        .card { background: white; border-radius: 1rem; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
-    </style>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Jumbo Monaka Cloud</title>
+<style>
+/* --- デザイン設定（あなたのコードをそのまま維持しています） --- */
+:root {
+  --mono: #222;
+  --gray: #bbb;
+  --light-gray: #eee;
+  --bg: #f7f7f7;
+  --card-bg: #ffffff;
+  --accent-choco: #6b3e26;
+  --accent-vanilla: #e6d8a8;
+  --accent-vanilla-text: #b8a050; 
+}
+
+* { box-sizing: border-box; outline: none; }
+body {
+  margin: 0; background: var(--bg); color: var(--mono);
+  font-family: sans-serif; height: 100vh; display: flex; overflow: hidden;
+}
+
+#auth-screen {
+  position: fixed; inset: 0; z-index: 2000;
+  background: var(--bg);
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+}
+.login-btn {
+  background: #fff; color: #555;
+  border: 1px solid #ddd; padding: 12px 24px;
+  font-weight: bold; cursor: pointer; border-radius: 4px;
+  display: flex; align-items: center; gap: 10px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+#user-bar {
+  position: absolute; top: 10px; right: 20px; z-index: 100;
+  font-size: 12px; color: var(--gray); display: flex; gap: 10px; align-items: center;
+}
+.logout-link { cursor: pointer; text-decoration: underline; }
+
+#sidebar {
+  width: 260px; background: var(--card-bg); border-right: 1px solid var(--light-gray);
+  display: flex; flex-direction: column; padding: 40px 0; z-index: 10;
+}
+.brand-title { text-align: center; font-weight: 800; margin-bottom: 40px; color: var(--gray); }
+.nav-item {
+  padding: 20px 30px; cursor: pointer; opacity: 0.5; filter: grayscale(100%);
+  display: flex; flex-direction: column; align-items: center; gap: 15px; transition: 0.3s;
+}
+.nav-item img { width: 100%; max-width: 180px; }
+.nav-item.active { opacity: 1; background: #fff; filter: grayscale(0%); border-left: 4px solid transparent; }
+.nav-item.choco.active { border-left-color: var(--accent-choco); }
+.nav-item.vanilla.active { border-left-color: var(--accent-vanilla); }
+
+#main { flex: 1; position: relative; padding: 40px; overflow: hidden; }
+
+.panel {
+  position: absolute; inset: 40px; background: var(--card-bg); border-radius: 24px;
+  display: flex; flex-direction: column; opacity: 0; pointer-events: none;
+  transform: translateX(-50px); transition: 0.6s;
+}
+.panel.active { opacity: 1; transform: translateX(0); pointer-events: all; }
+
+.panel-header { padding: 30px 40px; border-bottom: 1px solid var(--light-gray); display: flex; justify-content: space-between; }
+.panel-title { font-size: 24px; font-weight: 700; }
+.stat-value { font-size: 28px; font-weight: 700; }
+.panel-body { flex: 1; display: flex; overflow: hidden; }
+
+.graph-area { width: 40%; display: flex; justify-content: center; align-items: center; background: #fafafa; border-right: 1px solid #eee; }
+.circle-graph { width: 280px; height: 280px; position: relative; }
+.circle-graph svg { transform: rotate(-90deg); width: 100%; height: 100%; }
+.circle-bg { fill: none; stroke: #eee; stroke-width: 12; }
+.circle-progress { fill: none; stroke-width: 12; stroke-linecap: round; transition: stroke-dashoffset 1s; }
+.circle-content { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.circle-score { font-size: 64px; font-weight: 800; }
+
+.interaction-area { width: 60%; padding: 40px; display: flex; flex-direction: column; }
+.input-group { display: flex; gap: 15px; margin-bottom: 30px; align-items: flex-end; }
+input, select { width: 100%; padding: 12px 0; border: none; border-bottom: 2px solid #eee; font-size: 16px; background: transparent; }
+.add-btn { width: 50px; height: 50px; border-radius: 50%; border: none; color: #fff; font-size: 24px; cursor: pointer; }
+
+.history-list { flex: 1; overflow-y: auto; }
+.list-item { display: flex; justify-content: space-between; padding: 15px 0; border-bottom: 1px dashed #eee; align-items: center; }
+.delete-btn { cursor: pointer; color: #bbb; margin-left: 15px; font-size: 14px; }
+
+.choco .circle-progress { stroke: var(--accent-choco); }
+.choco .add-btn { background: var(--accent-choco); }
+.vanilla .circle-progress { stroke: var(--accent-vanilla); }
+.vanilla .add-btn { background: var(--accent-vanilla); }
+</style>
 </head>
-<body class="min-h-screen p-4 flex flex-col items-center">
+<body>
 
-    <div id="app" class="w-full max-w-md mt-10 card p-6 text-center">
-        <h1 class="text-2xl font-bold mb-6 text-blue-600">🍦 ジャンボモナカ記録</h1>
-        
-        <div id="login-section">
-            <p class="mb-4 text-gray-600">食べた数を記録するにはログインしてください</p>
-            <button id="login-btn" class="bg-blue-500 text-white px-6 py-2 rounded-full font-bold hover:bg-blue-600 transition">
-                Googleでログイン
-            </button>
-        </div>
+<div id="auth-screen">
+  <h2 style="margin-bottom:20px;">Jumbo Monaka Tracker</h2>
+  <button class="login-btn" onclick="signIn()">
+    <svg width="18" height="18" viewBox="0 0 18 18" style="margin-right:10px;"><path d="M17.64 9.2c0-.637-.057-1.252-.164-1.84H9v3.481h4.844a4.14 4.14 0 0 1-1.796 2.716v2.258h2.908c1.702-1.567 2.684-3.875 2.684-6.615z" fill="#4285F4"/><path d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.715H.957v2.332A8.997 8.997 0 0 0 9 18z" fill="#34A853"/><path d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z" fill="#FBBC05"/><path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.958L3.964 7.272C4.672 5.142 6.656 3.58 9 3.58z" fill="#EA4335"/></svg>
+    Googleでログイン
+  </button>
+</div>
 
-        <div id="user-section" class="hidden">
-            <div class="flex items-center justify-center gap-3 mb-6">
-                <img id="user-photo" src="" class="w-10 h-10 rounded-full border">
-                <span id="user-name" class="font-medium"></span>
-            </div>
-            
-            <div class="text-5xl font-bold mb-4 text-orange-500" id="total-count">0</div>
-            <p class="text-gray-500 mb-6">これまでに食べた合計</p>
-            
-            <button id="add-btn" class="w-20 h-20 bg-orange-400 text-white text-4xl rounded-full shadow-lg active:scale-95 transition mx-auto flex items-center justify-center">
-                ＋
-            </button>
-            
-            <button id="logout-btn" class="mt-10 text-xs text-gray-400 underline">ログアウト</button>
+<div id="app-container" style="display:none; height:100%;">
+  <div id="user-bar">
+    <span id="user-name">Guest</span>
+    <span class="logout-link" onclick="signOutFunc()">ログアウト</span>
+  </div>
+
+  <div id="sidebar">
+    <div class="brand-title">Cloud Tracker</div>
+    <div class="nav-item choco active" onclick="switchPanel('choco')">
+      <img src="ダウンロード (1).jpeg" alt="Choco"> <span>CHOCO</span>
+    </div>
+    <div class="nav-item vanilla" onclick="switchPanel('vanilla')">
+      <img src="ダウンロード (2).jpeg" alt="Vanilla"> <span>VANILLA</span>
+    </div>
+  </div>
+
+  <div id="main">
+    <div class="panel choco active" id="panel-choco">
+      <div class="panel-header">
+        <div class="panel-title">Choco Monaka Jumbo</div>
+        <div class="stat-value" id="choco-count">0</div>
+      </div>
+      <div class="panel-body">
+        <div class="graph-area">
+          <div class="circle-graph">
+            <svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="44" class="circle-bg"/><circle cx="50" cy="50" r="44" class="circle-progress" id="choco-arc" stroke-dasharray="0 276" stroke-dashoffset="276"/></svg>
+            <div class="circle-content"><div class="circle-score" id="choco-avg">0</div></div>
+          </div>
         </div>
+        <div class="interaction-area">
+          <div class="input-group">
+            <div style="flex:1"><label style="font-size:12px;color:#888">経過日数</label><input type="number" id="choco-days" placeholder="例: 3"></div>
+            <div style="flex:1"><label style="font-size:12px;color:#888">食感点</label><select id="choco-texture"><option value="5">5 (最高)</option><option value="4">4</option><option value="3">3</option><option value="2">2</option><option value="1">1</option></select></div>
+            <button class="add-btn" onclick="addRecord('choco')">＋</button>
+          </div>
+          <div class="history-list" id="choco-list"></div>
+        </div>
+      </div>
     </div>
 
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.17.1/firebase-app.js";
-        import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.17.1/firebase-auth.js";
-        import { getFirestore, doc, getDoc, setDoc, updateDoc, increment } from "https://www.gstatic.com/firebasejs/9.17.1/firebase-firestore.js";
+    <div class="panel vanilla" id="panel-vanilla">
+      <div class="panel-header">
+        <div class="panel-title">Vanilla Monaka Jumbo</div>
+        <div class="stat-value" id="vanilla-count">0</div>
+      </div>
+      <div class="panel-body">
+        <div class="graph-area">
+          <div class="circle-graph">
+            <svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="44" class="circle-bg"/><circle cx="50" cy="50" r="44" class="circle-progress" id="vanilla-arc" stroke-dasharray="0 276" stroke-dashoffset="276"/></svg>
+            <div class="circle-content"><div class="circle-score" id="vanilla-avg">0</div></div>
+          </div>
+        </div>
+        <div class="interaction-area">
+          <div class="input-group">
+            <div style="flex:1"><label style="font-size:12px;color:#888">経過日数</label><input type="number" id="vanilla-days" placeholder="例: 10"></div>
+            <div style="flex:1"><label style="font-size:12px;color:#888">食感点</label><select id="vanilla-texture"><option value="5">5 (最高)</option><option value="4">4</option><option value="3">3</option><option value="2">2</option><option value="1">1</option></select></div>
+            <button class="add-btn" onclick="addRecord('vanilla')">＋</button>
+          </div>
+          <div class="history-list" id="vanilla-list"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
 
-        // あなた専用のFirebase設定を適用済みです
-        const firebaseConfig = {
-            apiKey: "AIzaSyAU7wAys0B3CUKaDp1xtweRioojs_Wf6GU",
-            authDomain: "jumbo-tracker.firebaseapp.com",
-            projectId: "jumbo-tracker",
-            storageBucket: "jumbo-tracker.firebasestorage.app",
-            messagingSenderId: "456137226158",
-            appId: "1:456137226158:web:c43388f414c156cab83a3f",
-            measurementId: "G-2Q2HS17SXD"
-        };
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+  // 【重要】signInWithRedirect を signInWithPopup に変更しました。これで404エラーが直ります。
+  import { getAuth, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+  import { getFirestore, collection, addDoc, query, where, orderBy, onSnapshot, deleteDoc, doc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const db = getFirestore(app);
-        const provider = new GoogleAuthProvider();
+  // あなたのFirebase設定（変更なし）
+  const firebaseConfig = {
+    apiKey: "AIzaSyAU7wAys0B3CUKaDp1xtweRioojs_Wf6GU",
+    authDomain: "jumbo-tracker.firebaseapp.com",
+    projectId: "jumbo-tracker",
+    storageBucket: "jumbo-tracker.firebasestorage.app",
+    messagingSenderId: "456137226158",
+    appId: "1:456137226158:web:c43388f414c156cab83a3f",
+    measurementId: "G-2Q2HS17SXD"
+  };
 
-        // UI要素
-        const loginSection = document.getElementById('login-section');
-        const userSection = document.getElementById('user-section');
-        const loginBtn = document.getElementById('login-btn');
-        const logoutBtn = document.getElementById('logout-btn');
-        const addBtn = document.getElementById('add-btn');
-        const totalCountDisp = document.getElementById('total-count');
-        const userNameDisp = document.getElementById('user-name');
-        const userPhotoDisp = document.getElementById('user-photo');
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const db = getFirestore(app);
+  const provider = new GoogleAuthProvider();
 
-        // ログイン処理（ポップアップ方式）
-        loginBtn.onclick = async () => {
-            try {
-                await signInWithPopup(auth, provider);
-            } catch (error) {
-                console.error("ログインエラー:", error);
-                alert("ログインに失敗しました。承認済みドメインを確認してください。");
-            }
-        };
+  let currentUser = null;
+  let unsubMap = { choco: null, vanilla: null };
+  const localData = { choco: [], vanilla: [] };
 
-        // ログアウト処理
-        logoutBtn.onclick = () => signOut(auth);
+  // 【修正】ポップアップログインを使用します
+  window.signIn = () => {
+      signInWithPopup(auth, provider).catch((error) => {
+          console.error("Login failed", error);
+          alert("ログインできませんでした。承認済みドメイン設定を確認してください。");
+      });
+  };
+  
+  window.signOutFunc = () => signOut(auth);
 
-        // データの読み込み
-        async function loadData(uid) {
-            const docRef = doc(db, "users", uid);
-            const docSnap = await getDoc(docRef);
-            if (docSnap.exists()) {
-                totalCountDisp.innerText = docSnap.data().count || 0;
-            } else {
-                await setDoc(docRef, { count: 0 });
-                totalCountDisp.innerText = 0;
-            }
-        }
+  onAuthStateChanged(auth, (user) => {
+    if (user) {
+      currentUser = user;
+      document.getElementById('auth-screen').style.display = 'none';
+      document.getElementById('app-container').style.display = 'flex';
+      document.getElementById('user-name').textContent = user.displayName;
+      startListener('choco');
+      startListener('vanilla');
+    } else {
+      currentUser = null;
+      document.getElementById('auth-screen').style.display = 'flex';
+      document.getElementById('app-container').style.display = 'none';
+      if(unsubMap.choco) unsubMap.choco();
+      if(unsubMap.vanilla) unsubMap.vanilla();
+    }
+  });
 
-        // 食べた数を＋1
-        addBtn.onclick = async () => {
-            const user = auth.currentUser;
-            if (user) {
-                const docRef = doc(db, "users", user.uid);
-                await updateDoc(docRef, { count: increment(1) });
-                loadData(user.uid);
-            }
-        };
+  function startListener(type) {
+    if(unsubMap[type]) unsubMap[type]();
+    const q = query(
+      collection(db, "records"),
+      where("uid", "==", currentUser.uid),
+      where("type", "==", type),
+      orderBy("createdAt", "desc")
+    );
 
-        // ログイン状態の監視
-        onAuthStateChanged(auth, (user) => {
-            if (user) {
-                loginSection.classList.add('hidden');
-                userSection.classList.remove('hidden');
-                userNameDisp.innerText = user.displayName;
-                userPhotoDisp.src = user.photoURL;
-                loadData(user.uid);
-            } else {
-                loginSection.classList.remove('hidden');
-                userSection.classList.add('hidden');
-            }
-        });
-    </script>
+    unsubMap[type] = onSnapshot(q, (snapshot) => {
+      localData[type] = [];
+      snapshot.forEach((doc) => localData[type].push({ id: doc.id, ...doc.data() }));
+      render(type, true);
+    });
+  }
+
+  window.addRecord = async (type) => {
+    const dEl = document.getElementById(`${type}-days`);
+    const tEl = document.getElementById(`${type}-texture`);
+    const days = parseInt(dEl.value);
+    const texture = parseInt(tEl.value);
+    if(isNaN(days)) return alert("日数を入力してください");
+
+    const score = Math.round(900 * (texture / 5) + 100 * (days / 60));
+    await addDoc(collection(db, "records"), {
+      uid: currentUser.uid, type, days, score,
+      date: new Date().toLocaleDateString('ja-JP'),
+      createdAt: serverTimestamp()
+    });
+    dEl.value = ''; tEl.value = '5';
+  };
+
+  window.del = async (id) => {
+    if(confirm("削除しますか？")) await deleteDoc(doc(db, "records", id));
+  };
+
+  window.switchPanel = (type) => {
+    document.querySelectorAll('.nav-item').forEach(e => e.classList.remove('active'));
+    document.querySelector(`.nav-item.${type}`).classList.add('active');
+    document.querySelectorAll('.panel').forEach(e => e.classList.remove('active'));
+    document.getElementById(`panel-${type}`).classList.add('active');
+    render(type, true);
+  };
+
+  function render(type, animate) {
+    const items = localData[type] || [];
+    const listEl = document.getElementById(`${type}-list`);
+    listEl.innerHTML = '';
+    items.forEach(item => {
+      const div = document.createElement('div');
+      div.className = 'list-item';
+      div.innerHTML = `<div><b>${item.date}</b><br><small>製造${item.days}日 / ${item.score}点</small></div>
+                        <div style="display:flex;align-items:center"><b style="font-size:18px">${item.score}</b>
+                        <span class="delete-btn" style="margin-left:10px;cursor:pointer" onclick="del('${item.id}')">✕</span></div>`;
+      listEl.appendChild(div);
+    });
+
+    document.getElementById(`${type}-count`).textContent = items.length;
+    const avg = items.length ? Math.round(items.reduce((a,b)=>a+b.score,0)/items.length) : 0;
+    document.getElementById(`${type}-avg`).textContent = avg;
+    
+    const arc = document.getElementById(`${type}-arc`);
+    const offset = 276 * (1 - Math.min(avg/1000, 1));
+    arc.style.strokeDashoffset = offset;
+  }
+</script>
 </body>
 </html>
