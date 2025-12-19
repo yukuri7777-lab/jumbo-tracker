@@ -3,9 +3,9 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Jumbo Monaka Tracker 3.1</title>
+<title>Jumbo Monaka Tracker 3.3</title>
 <style>
-/* --- いただいたデザイン設定 (ここから) --- */
+/* --- デザイン設定 --- */
 :root {
   --mono: #222;
   --gray: #bbb;
@@ -29,7 +29,7 @@ body {
   overflow: hidden;
 }
 
-/* ログイン画面のスタイルを追加 */
+/* ログイン画面 */
 #auth-screen {
   position: fixed; inset: 0; z-index: 2000;
   background: var(--bg);
@@ -43,7 +43,7 @@ body {
   box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
-/* ログアウトボタン（サイドバーに追加用） */
+/* ログアウトボタン */
 .logout-btn {
     margin-top: auto; padding: 15px; text-align: center;
     font-size: 12px; color: var(--gray); cursor: pointer; text-decoration: underline;
@@ -72,12 +72,11 @@ body {
   display: flex; flex-direction: column; align-items: center; gap: 15px;
 }
 
-/* 画像がない場合のフォールバック（四角形表示） */
 .nav-item img {
   width: 100%; max-width: 180px; height: auto; display: block;
   transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
   filter: drop-shadow(0 4px 6px rgba(0,0,0,0.1));
-  min-height: 80px; background: #eee; /* 画像読み込みエラー時用 */
+  min-height: 80px; background: #eee;
 }
 
 .nav-item span { font-size: 13px; font-weight: 600; letter-spacing: 0.05em; }
@@ -96,17 +95,28 @@ body {
 /* Main Area */
 #main { flex: 1; position: relative; padding: 40px; overflow: hidden; }
 
-/* Toast Notification */
+/* Toast Notification (Updated) */
 #toast {
   position: fixed; top: 20px; left: 50%;
   transform: translateX(-50%) translateY(-20px);
-  background: rgba(0, 0, 0, 0.8); color: #fff;
+  background: #333; color: #fff;
   padding: 12px 24px; border-radius: 30px;
   font-size: 14px; font-weight: 600; opacity: 0;
   transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
   pointer-events: none; z-index: 1000;
+  display: flex; align-items: center; gap: 15px; /* ボタン横並び用 */
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
 }
-#toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+#toast.show { opacity: 1; transform: translateX(-50%) translateY(0); pointer-events: auto; }
+
+/* Undo Button inside Toast */
+.undo-btn {
+    background: transparent; border: none; 
+    color: #4da6ff; /* 薄い青 */
+    cursor: pointer; font-weight: bold; font-size: 14px;
+    padding: 0; text-decoration: underline;
+}
+.undo-btn:hover { color: #80c1ff; }
 
 /* Panel Animation */
 .panel {
@@ -185,7 +195,7 @@ button.add-btn:active { transform: scale(0.95); }
 .list-item:hover .delete-btn { opacity: 1; }
 .delete-btn:hover { color: #f44; }
 
-/* スマホ対応（念のため追加） */
+/* スマホ対応 */
 @media (max-width: 768px) {
     body { flex-direction: column; height: auto; overflow: auto; }
     #sidebar { width: 100%; flex-direction: row; justify-content: center; padding: 10px; box-shadow: none; border-bottom: 1px solid #eee; height: auto;}
@@ -206,7 +216,10 @@ button.add-btn:active { transform: scale(0.95); }
   <button class="login-btn" id="login-button">Googleでログイン</button>
 </div>
 
-<div id="toast">削除しました</div>
+<div id="toast">
+    <span id="toast-msg">Deleted!</span>
+    <button id="toast-undo" class="undo-btn">元に戻す</button>
+</div>
 
 <div id="app-container" style="display:none; height:100%; width:100%; display:flex;">
 
@@ -360,7 +373,7 @@ button.add-btn:active { transform: scale(0.95); }
   let unsubscribes = { choco: null, vanilla: null };
 
   const CIRCLE_R = 44;
-  const CIRCLE_CIRCUMFERENCE = 2 * Math.PI * CIRCLE_R; // approx 276.46
+  const CIRCLE_CIRCUMFERENCE = 2 * Math.PI * CIRCLE_R;
 
   // --- Auth Functions ---
   document.getElementById('login-button').onclick = () => {
@@ -369,7 +382,6 @@ button.add-btn:active { transform: scale(0.95); }
 
   window.logoutApp = () => signOut(auth);
 
-  // ログイン監視
   onAuthStateChanged(auth, (user) => {
     if (user) {
       currentUser = user;
@@ -402,12 +414,27 @@ button.add-btn:active { transform: scale(0.95); }
       snapshot.forEach((doc) => {
         localData[type].push({ id: doc.id, ...doc.data() });
       });
-      render(type, true); // データが来たら描画
+      render(type, true);
     });
   }
 
-  // --- User Actions (Window global for HTML access) ---
+  // --- Helper: Enable Enter Key ---
+  function setupEnterKey(type) {
+    const daysInput = document.getElementById(`${type}-days`);
+    const textureInput = document.getElementById(`${type}-texture`);
+    const handler = (e) => {
+        if(e.key === 'Enter') addRecord(type);
+    };
+    daysInput.addEventListener('keydown', handler);
+    textureInput.addEventListener('keydown', handler);
+  }
   
+  // 画面ロード時にエンターキーイベントを設定
+  setupEnterKey('choco');
+  setupEnterKey('vanilla');
+
+
+  // --- User Actions ---
   window.switchPanel = (type) => {
     document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
     document.querySelector(`.nav-item.${type}`).classList.add('active');
@@ -430,10 +457,7 @@ button.add-btn:active { transform: scale(0.95); }
       return;
     }
 
-    // ★指定された計算式★
-    // 食感(90%) + 日数(10%)
     const score = Math.round(900 * (texture / 5) + 100 * (days / 60));
-    
     const dateStr = new Date().toLocaleDateString('ja-JP', { year: 'numeric', month: '2-digit', day: '2-digit' });
 
     try {
@@ -447,23 +471,37 @@ button.add-btn:active { transform: scale(0.95); }
         });
         daysInput.value = '';
         textureInput.value = '5';
-        // renderはonSnapshotが自動でやってくれます
+        daysInput.focus();
     } catch(e) {
         console.error(e);
-        alert("保存失敗。ログイン状態を確認してください。");
+        alert("保存エラー。データベース設定を確認してください");
     }
   };
 
+  // --- Delete Function (Modified: No Confirm, With Undo) ---
   window.del = async (type, id) => {
-    // リストのインデックスではなく、FirestoreのIDで削除
-    if(confirm("削除しますか？")) {
+    // 1. 削除前にデータをバックアップ（元に戻すため）
+    const itemBackup = localData[type].find(item => item.id === id);
+    if (!itemBackup) return;
+
+    // 2. 即座に削除
+    try {
         await deleteDoc(doc(db, "records", id));
-        showToast();
+
+        // 3. トーストを表示（Undo機能を付与）
+        showToast("Deleted!", async () => {
+            // 元に戻す処理
+            const { id, ...dataToRestore } = itemBackup; // IDを除外して再登録
+            await addDoc(collection(db, "records"), dataToRestore);
+        });
+
+    } catch(e) {
+        console.error("削除エラー:", e);
+        alert("削除に失敗しました");
     }
   };
 
-  // --- Rendering & Animation ---
-
+  // --- Rendering ---
   function render(type, animate = false) {
     const listEl = document.getElementById(`${type}-list`);
     const countEl = document.getElementById(`${type}-count`);
@@ -471,7 +509,6 @@ button.add-btn:active { transform: scale(0.95); }
     const arcEl = document.getElementById(`${type}-arc`);
     const items = localData[type] || [];
 
-    // Render List
     listEl.innerHTML = '';
     items.forEach((item, index) => {
       const div = document.createElement('div');
@@ -490,7 +527,6 @@ button.add-btn:active { transform: scale(0.95); }
       listEl.appendChild(div);
     });
 
-    // Stats
     const total = items.length;
     countEl.textContent = total;
     let avgScore = 0;
@@ -500,22 +536,16 @@ button.add-btn:active { transform: scale(0.95); }
       avgScore = Math.round(sumScore / total);
     }
 
-    // Graph Animation
     if (animate) {
       animateValue(avgEl, 0, avgScore, 1000);
-
       arcEl.style.transition = 'none';
       arcEl.style.strokeDasharray = `${CIRCLE_CIRCUMFERENCE} ${CIRCLE_CIRCUMFERENCE}`;
       arcEl.style.strokeDashoffset = CIRCLE_CIRCUMFERENCE;
-      
-      void arcEl.offsetWidth; // force reflow
-
+      void arcEl.offsetWidth;
       const ratio = Math.min(avgScore / 1000, 1);
       const targetOffset = CIRCLE_CIRCUMFERENCE * (1 - ratio);
-      
       arcEl.style.transition = 'stroke-dashoffset 1.5s cubic-bezier(0.22, 1, 0.36, 1)';
       arcEl.style.strokeDashoffset = targetOffset;
-      
     } else {
       avgEl.textContent = avgScore;
       const ratio = Math.min(avgScore / 1000, 1);
@@ -539,17 +569,34 @@ button.add-btn:active { transform: scale(0.95); }
     window.requestAnimationFrame(step);
   }
 
+  // --- Toast with Undo (Modified) ---
   let toastTimeout;
-  function showToast() {
+  
+  function showToast(message, undoCallback) {
     const toast = document.getElementById('toast');
+    const msgEl = document.getElementById('toast-msg');
+    const undoBtn = document.getElementById('toast-undo');
+
+    // メッセージ設定
+    msgEl.textContent = message;
+
+    // Undoボタンの設定
+    undoBtn.onclick = () => {
+        if(undoCallback) undoCallback();
+        toast.classList.remove('show'); // 押したらすぐ消す
+    };
+
+    // 表示
     toast.classList.add('show');
+
+    // タイマーリセット
     if(toastTimeout) clearTimeout(toastTimeout);
+    
+    // 3.5秒後に消える
     toastTimeout = setTimeout(() => {
       toast.classList.remove('show');
-    }, 2000);
+    }, 3500);
   }
-
-  // 初期化不要 (Auth Listenerがやってくれます)
 </script>
 </body>
 </html>
